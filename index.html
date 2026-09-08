@@ -4,6 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Clipzo - Short Video Platform</title>
+  
+  <!-- PWA Manifest Link -->
+  <link rel="manifest" href="./manifest.json">
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
@@ -451,7 +455,7 @@
 
   <script>
     const SUPABASE_URL = "https://kekvjtnganrojdlqjjge.supabase.co"; 
-    const SUPABASE_KEY = "sb_publishable_H9vH5SivM5ZiDlkRWcLvSw_TEPVzEFD"; 
+    const SUPABASE_KEY = "supabase_key"; 
 
     let supabaseClient = null;
     try { supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e){}
@@ -540,12 +544,9 @@
       if(!currentUser) return;
 
       const { data: videos } = await supabaseClient.from('videos').select('likes_count').eq('user_id', currentUser.id);
-      // সিমুলেটেড বা ভিডিওর এনগেজমেন্ট অনুযায়ী ভিউ হিসাব (প্রতি ভিডিও গড়ে ১২০০ ভিউ ধরে)
       let totalViews = (videos || []).reduce((acc, v) => acc + ((v.likes_count || 0) * 20 + 800), 0);
       
-      // ১০০০ ভিউতে ১০ কয়েন
       let totalCoins = Math.floor(totalViews / 1000) * 10;
-      // ১০ কয়েনের মূল্য $0.5 হলে, ১ কয়েনের মূল্য $0.05
       let totalUsd = (totalCoins * (0.5 / 10)).toFixed(2);
 
       document.getElementById('userCoinDisplay').innerText = totalCoins + " কয়েন";
