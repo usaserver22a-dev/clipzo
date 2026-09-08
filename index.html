@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clipzo - Short Video Platform</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+    body { background-color: #0b0f19; color: #fff; overflow: hidden; height: 100vh; }
+
+    /* অথোন্টিকেশন স্ক্রিন */
+    #authScreen {
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+      height: 100vh; padding: 20px;
+      background: radial-gradient(circle at top right, #1e1b4b, #0f172a, #0b0f19); text-align: center;
+    }
+    .auth-box {
+      width: 100%; max-width: 380px;
+      background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(16px);
+      padding: 30px 25px; border-radius: 24px;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    .brand-logo { 
+      font-size: 32px; font-weight: 900; 
+      background: linear-gradient(135deg, #a855f7, #06b6d4); 
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; 
+      margin-bottom: 4px;
+    }
+    .brand-subtitle { font-size: 13px; color: #94a3b8; margin-bottom: 20px; }
+    .auth-tabs { display: flex; background: rgba(15, 23, 42, 0.8); border-radius: 12px; padding: 4px; margin-bottom: 20px; }
+    .tab-btn { flex: 1; padding: 8px; border: none; background: transparent; color: #94a3b8; font-weight: 600; font-size: 13px; cursor: pointer; border-radius: 8px; }
+    .tab-btn.active { background: linear-gradient(135deg, #7c3aed, #06b6d4); color: #fff; }
+    .auth-form { display: none; }
+    .auth-form.active { display: block; }
+    .auth-input {
+      width: 100%; padding: 13px 16px; margin-bottom: 12px; border: 1px solid #334155;
+      background: rgba(15, 23, 42, 0.9); color: #fff; border-radius: 12px; font-size: 14px; outline: none;
+    }
+    .auth-btn {
+      width: 100%; padding: 13px;
+      background: linear-gradient(135deg, #7c3aed, #06b6d4); border: none;
+      color: #fff; font-weight: 700; border-radius: 12px; font-size: 15px; cursor: pointer; margin-top: 6px;
+    }
+
+    /* মেইন অ্যাপ UI */
+    #appScreen { display: none; height: 100vh; width: 100vw; position: relative; }
+    .top-header {
+      position: fixed; top: 0; left: 0; right: 0; height: 60px;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0 20px; z-index: 100;
+      background: linear-gradient(to bottom, rgba(11, 15, 25, 0.85), transparent);
+    }
+    .header-logo { font-size: 22px; font-weight: 800; background: linear-gradient(135deg, #a855f7, #06b6d4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .top-tabs { display: flex; gap: 20px; align-items: center; font-size: 14px; font-weight: 600; color: #94a3b8; }
+    .top-tabs span.active { color: #fff; font-weight: 700; }
+
+    .view-section { display: none; height: 100vh; width: 100vw; overflow-y: scroll; scrollbar-width: none; }
+    .view-section.active { display: block; }
+    .view-section::-webkit-scrollbar { display: none; }
+
+    /* ফিড সেকশন */
+    .video-card {
+      height: 100vh; width: 100vw; scroll-snap-align: start;
+      position: relative; background: #000;
+      display: flex; justify-content: center; align-items: center;
+    }
+    video { width: 100%; height: 100%; object-fit: cover; }
+    .sidebar {
+      position: absolute; right: 15px; bottom: 100px;
+      display: flex; flex-direction: column; align-items: center; gap: 16px; z-index: 20;
+      background: rgba(15, 23, 42, 0.45); backdrop-filter: blur(12px);
+      padding: 16px 10px; border-radius: 30px; border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .action-item { display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; }
+    .action-icon { font-size: 24px; }
+    .action-count { font-size: 11px; font-weight: 600; color: #e2e8f0; }
+    .video-info { position: absolute; left: 16px; bottom: 85px; right: 85px; z-index: 20; }
+    .username-row { display: flex; align-items: center; gap: 10px; }
+    .username-text { font-size: 15px; font-weight: 700; color: #fff; }
+    .caption-text { font-size: 13px; color: #cbd5e1; margin-top: 4px; }
+
+    /* প্রোফাইল পেজ */
+    #profileSection { padding: 75px 15px 100px 15px; background: #0b0f19; }
+    .profile-header-box { display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 20px; }
+    .avatar-wrapper { position: relative; width: 95px; height: 95px; margin-bottom: 12px; cursor: pointer; }
+    .profile-avatar-large { width: 100%; height: 100%; border-radius: 50%; border: 3px solid #06b6d4; object-fit: cover; background: #1e293b; }
+    .avatar-edit-badge {
+      position: absolute; bottom: 2px; right: 2px; width: 26px; height: 26px;
+      background: #06b6d4; color: #fff; border-radius: 50%; display: flex;
+      justify-content: center; align-items: center; font-size: 16px; font-weight: bold;
+      border: 2px solid #0b0f19;
+    }
+    .profile-display-name { font-size: 18px; font-weight: 800; color: #fff; }
+    .profile-username-large { font-size: 13px; color: #94a3b8; margin-top: 1px; }
+    .profile-bio { font-size: 12px; color: #cbd5e1; margin-top: 8px; max-width: 280px; }
+    .profile-stats-row {
+      display: flex; justify-content: space-around; width: 100%; max-width: 340px;
+      margin: 18px auto; background: rgba(30, 41, 59, 0.4); padding: 12px; border-radius: 16px;
+    }
+    .p-stat-box { display: flex; flex-direction: column; align-items: center; }
+    .p-stat-num { font-size: 17px; font-weight: 800; color: #fff; }
+    .p-stat-label { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+    .profile-action-btns { display: flex; gap: 10px; width: 100%; max-width: 340px; margin: 0 auto 20px auto; }
+    .p-action-btn {
+      flex: 1; padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(30, 41, 59, 0.8); color: #fff; font-weight: 600; font-size: 13px; cursor: pointer;
+    }
+    .profile-videos-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; width: 100%; max-width: 500px; margin: 0 auto;
+    }
+    .grid-video-item { aspect-ratio: 9/16; background: #1e293b; border-radius: 6px; overflow: hidden; position: relative; }
+    .grid-video-item video { width: 100%; height: 100%; object-fit: cover; }
+    .grid-like-badge {
+      position: absolute; bottom: 6px; left: 6px; font-size: 11px; font-weight: 700; color: #fff;
+      background: rgba(0,0,0,0.5); padding: 2px 6px; border-radius: 4px; backdrop-filter: blur(4px);
+    }
+
+    /* সাইড ড্রয়ার মেনু */
+    .drawer-overlay {
+      display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.6); z-index: 300; backdrop-filter: blur(4px);
+    }
+    .drawer-menu {
+      position: fixed; top: 0; right: -300px; width: 280px; height: 100vh;
+      background: #0f172a; z-index: 301; transition: right 0.3s ease;
+      display: flex; flex-direction: column; padding: 20px; border-left: 1px solid rgba(255,255,255,0.1);
+      overflow-y: auto;
+    }
+    .drawer-menu.open { right: 0; }
+    .drawer-header { font-size: 16px; font-weight: 700; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; padding-bottom: 10px; }
+    .drawer-section-title { font-size: 11px; color: #64748b; font-weight: 700; margin: 15px 0 8px 0; text-transform: uppercase; }
+    .drawer-item {
+      display: flex; align-items: center; gap: 12px; padding: 12px 10px;
+      font-size: 13px; color: #cbd5e1; border-radius: 8px; cursor: pointer; transition: background 0.2s;
+    }
+    .drawer-item:hover { background: rgba(255,255,255,0.05); color: #fff; }
+    .drawer-icon { font-size: 18px; }
+
+    /* বটম নেভ */
+    .bottom-nav {
+      position: fixed; bottom: 15px; left: 12px; right: 12px; height: 60px;
+      background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(16px);
+      border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.15);
+      display: flex; justify-content: space-evenly; align-items: center; z-index: 100; padding: 0 5px;
+    }
+    .nav-item {
+      flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      color: #94a3b8; font-size: 11px; font-weight: 500; cursor: pointer; text-decoration: none;
+    }
+    .nav-item.active { color: #06b6d4; font-weight: 700; }
+    .nav-icon { font-size: 20px; line-height: 1; margin-bottom: 3px; }
+    .upload-btn-container { flex: 1; display: flex; justify-content: center; align-items: center; }
+    .upload-btn-glow {
+      width: 46px; height: 46px; background: linear-gradient(135deg, #7c3aed, #06b6d4);
+      border-radius: 50%; display: flex; justify-content: center; align-items: center;
+      color: #fff; font-size: 24px; font-weight: bold; box-shadow: 0 0 15px rgba(124, 58, 237, 0.6);
+      border: 3px solid #0b0f19; cursor: pointer; margin-top: -18px;
+    }
+
+    /* মোডাল ডিজাইন */
+    .modal-overlay {
+      display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(11, 15, 25, 0.9); backdrop-filter: blur(12px);
+      z-index: 400; justify-content: center; align-items: center; padding: 15px;
+    }
+    .modal-card {
+      width: 100%; max-width: 400px; background: rgba(30, 41, 59, 0.95); padding: 25px;
+      border-radius: 24px; border: 1px solid rgba(255, 255, 255, 0.12); position: relative; max-height: 90vh; overflow-y: auto;
+    }
+    .close-btn { position: absolute; top: 15px; right: 20px; font-size: 20px; color: #94a3b8; cursor: pointer; }
+
+    .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 14px; }
+    .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: .3s; border-radius: 24px; }
+    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
+    input:checked + .slider { background-color: #06b6d4; }
+    input:checked + .slider:before { transform: translateX(20px); }
+
+    .studio-tabs { display: flex; background: #0f172a; border-radius: 10px; padding: 4px; margin-bottom: 15px; }
+    .studio-tab { flex: 1; text-align: center; padding: 8px 4px; font-size: 11px; font-weight: 600; color: #94a3b8; cursor: pointer; border-radius: 8px; }
+    .studio-tab.active { background: #06b6d4; color: #fff; }
+    .studio-metric-box { background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; border-radius: 14px; padding: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+  </style>
+</head>
+<body>
+
+  <!-- লগইন/সাইনআপ স্ক্রিন -->
+  <div id="authScreen">
+    <div class="auth-box">
+      <div class="brand-logo">Clipzo</div>
+      <div class="brand-subtitle">শর্ট ভিডিও প্ল্যাটফর্মে স্বাগতম</div>
+      <div class="auth-tabs">
+        <button class="tab-btn active" id="signUpTabBtn" onclick="switchAuthTab('signup')">সাইন আপ</button>
+        <button class="tab-btn" id="loginTabBtn" onclick="switchAuthTab('login')">লগইন</button>
+      </div>
+      <div id="signUpForm" class="auth-form active">
+        <input type="text" id="signUpUsername" class="auth-input" placeholder="ইউজারনেম (যেমন: ismail2fx)">
+        <input type="email" id="signUpEmail" class="auth-input" placeholder="ইমেইল অ্যাড্রেস">
+        <input type="password" id="signUpPassword" class="auth-input" placeholder="পাসওয়ার্ড">
+        <button class="auth-btn" onclick="handleSignUp()">সাইন আপ করুন</button>
+      </div>
+      <div id="loginForm" class="auth-form">
+        <input type="email" id="loginEmail" class="auth-input" placeholder="ইমেইল অ্যাড্রেস">
+        <input type="password" id="loginPassword" class="auth-input" placeholder="পাসওয়ার্ড">
+        <button class="auth-btn" onclick="handleLogin()">লগইন করুন</button>
+      </div>
+      <p id="authMsg" style="margin-top:14px; font-size:13px; color:#f43f5e;"></p>
+    </div>
+  </div>
+
+  <!-- মেইন অ্যাপ স্ক্রিন -->
+  <div id="appScreen">
+    
+    <!-- ফিড সেকশন -->
+    <div id="feedSection" class="view-section active">
+      <div class="top-header">
+        <div class="header-logo">Clipzo</div>
+        <div class="top-tabs">
+          <span>Following</span>
+          <span class="active">Trending</span>
+        </div>
+        <div style="font-size: 18px; cursor: pointer;">🔍</div>
+      </div>
+      <div id="videoContainer" style="height: 100vh; overflow-y: scroll; scroll-snap-type: y mandatory; scrollbar-width: none;">
+        <div style="text-align:center; padding-top: 45vh; color:#94a3b8;">ভিডিও লোড হচ্ছে...</div>
+      </div>
+    </div>
+
+    <!-- প্রোফাইল সেকশন -->
+    <div id="profileSection" class="view-section">
+      <div class="top-header" style="background: #0b0f19;">
+        <div class="header-logo" style="font-size:18px;">প্রোফাইল</div>
+        <div style="font-size: 22px; cursor: pointer; padding: 5px;" onclick="openDrawer()">☰</div>
+      </div>
+
+      <div class="profile-header-box">
+        <div class="avatar-wrapper" onclick="document.getElementById('avatarFileInput').click()">
+          <img id="profImg" class="profile-avatar-large" src="https://api.dicebear.com/7.x/bottts/svg?seed=user">
+          <div class="avatar-edit-badge">+</div>
+        </div>
+        <input type="file" id="avatarFileInput" accept="image/*" style="display: none;" onchange="uploadAvatarFile(event)">
+
+        <div id="profDisplayName" class="profile-display-name">Creator Name</div>
+        <div id="profUsername" class="profile-username-large">@username</div>
+        <div id="profBio" class="profile-bio">Simple Creator</div>
+
+        <div class="profile-stats-row">
+          <div class="p-stat-box"><span class="p-stat-num" id="statFollowing">0</span><span class="p-stat-label">Following</span></div>
+          <div class="p-stat-box"><span class="p-stat-num" id="statFollowers">0</span><span class="p-stat-label">Followers</span></div>
+          <div class="p-stat-box"><span class="p-stat-num" id="statLikes">0</span><span class="p-stat-label">Likes</span></div>
+        </div>
+
+        <div class="profile-action-btns">
+          <button class="p-action-btn" onclick="openEditProfileModal()">Edit Profile</button>
+          <button class="p-action-btn" onclick="openDrawer()">Creator Tools</button>
+        </div>
+      </div>
+
+      <div style="font-size: 13px; font-weight: 700; margin-bottom: 10px; border-bottom: 1px solid #1e293b; padding-bottom: 8px; text-align: center; color:#94a3b8;">আপনার ভিডিওসমূহ</div>
+      <div class="profile-videos-grid" id="userProfileVideosGrid"></div>
+    </div>
+
+    <!-- বটম নেভ -->
+    <div class="bottom-nav">
+      <div class="nav-item active" id="navFeedBtn" onclick="switchTab('feed')"><span class="nav-icon">🔥</span><span>Feed</span></div>
+      <div class="nav-item" onclick="switchTab('explore')"><span class="nav-icon">🌐</span><span>Explore</span></div>
+      <div class="upload-btn-container" onclick="openUploadModal()"><div class="upload-btn-glow">+</div></div>
+      <div class="nav-item" onclick="switchTab('activity')"><span class="nav-icon">🔔</span><span>Activity</span></div>
+      <div class="nav-item" id="navProfileBtn" onclick="switchTab('profile')"><span class="nav-icon">👤</span><span>Profile</span></div>
+    </div>
+  </div>
+
+  <!-- সাইড ড্রয়ার মেনু -->
+  <div id="drawerOverlay" class="drawer-overlay" onclick="closeDrawer()"></div>
+  <div id="drawerMenu" class="drawer-menu">
+    <div class="drawer-header">
+      <span>Settings & Tools</span>
+      <span style="cursor:pointer;" onclick="closeDrawer()">✕</span>
+    </div>
+
+    <div class="drawer-section-title">Assets</div>
+    <div class="drawer-item" onclick="openBalanceModal()"><span class="drawer-icon">💰</span> Balance & Coins</div>
+
+    <div class="drawer-section-title">Personal tools</div>
+    <div class="drawer-item" onclick="openActivityCentre()"><span class="drawer-icon">🕒</span> Activity centre</div>
+    <div class="drawer-item" onclick="openOfflineVideos()"><span class="drawer-icon">📥</span> Offline videos</div>
+    <div class="drawer-item" onclick="showQrCodeModal()"><span class="drawer-icon">📱</span> Your QR code</div>
+
+    <div class="drawer-section-title">Creation & business tools</div>
+    <div class="drawer-item" onclick="openBusinessSuite()"><span class="drawer-icon">💼</span> Business Suite</div>
+    <div class="drawer-item" onclick="openClipzoStudio()"><span class="drawer-icon">📊</span> Clipzo Studio</div>
+    <div class="drawer-item" onclick="openPromoteModal()"><span class="drawer-icon">🚀</span> Promote</div>
+
+    <div class="drawer-section-title">System</div>
+    <div class="drawer-item" onclick="openEditProfileModal()"><span class="drawer-icon">✏️</span> Edit Profile</div>
+    <div class="drawer-item" onclick="openSettingsPrivacy()"><span class="drawer-icon">⚙️</span> Settings and privacy</div>
+    <div class="drawer-item" onclick="logout()" style="color:#f43f5e;"><span class="drawer-icon">🚪</span> Logout</div>
+  </div>
+
+  <!-- মোডালসমূহ (Balance, Withdraw, Deposit ইত্যাদি) -->
+  <div id="balanceModal" class="modal-overlay">
+    <div class="modal-card" style="text-align:center;">
+      <span class="close-btn" onclick="closeModal('balanceModal')">✕</span>
+      <h3 style="margin-bottom:5px;">My Balance & Coins</h3>
+      <p style="font-size: 11px; color: #94a3b8; margin-bottom: 15px;">নিয়ম: ১০০০ ভিউ = ১০ কয়েন (১০ কয়েন = $0.5)</p>
+      
+      <div style="font-size: 30px; font-weight:800; color:#06b6d4; margin: 10px 0;" id="userCoinDisplay">০ কয়েন</div>
+      <div style="font-size: 15px; font-weight:700; color:#cbd5e1; margin-bottom: 20px;" id="userUsdDisplay">মূল্য: $0.00</div>
+      
+      <div style="display: flex; gap: 10px;">
+        <button class="auth-btn" style="background: #10b981; margin-top:0;" onclick="openWithdrawModal()">উইথড্র (Withdraw)</button>
+        <button class="auth-btn" style="background: #3b82f6; margin-top:0;" onclick="openDepositModal()">ডিপোজিট (Deposit)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- উইথড্র মোডাল -->
+  <div id="withdrawModal" class="modal-overlay">
+    <div class="modal-card">
+      <span class="close-btn" onclick="closeModal('withdrawModal')">✕</span>
+      <h3 style="margin-bottom:10px; font-size: 18px;">টাকা উইথড্র করুন</h3>
+      <p style="font-size: 12px; color: #94a3b8; margin-bottom: 15px;">আপনার কয়েন থেকে টাকা ক্যাশআউট করুন।</p>
+      <input type="number" id="withdrawCoins" class="auth-input" placeholder="কত কয়েন উইথড্র করবেন...">
+      <input type="text" id="withdrawAccountNo" class="auth-input" placeholder="বিকাশ/নগদ নম্বর দিন...">
+      <button class="auth-btn" onclick="submitWithdrawRequest()">উইথড্র রিকোয়েস্ট পাঠান</button>
+    </div>
+  </div>
+
+  <!-- ডিপোজিট মোডাল -->
+  <div id="depositModal" class="modal-overlay">
+    <div class="modal-card">
+      <span class="close-btn" onclick="closeModal('depositModal')">✕</span>
+      <h3 style="margin-bottom:10px; font-size: 18px;">ব্যালেন্স ডিপোজিট করুন</h3>
+      <p style="font-size: 12px; color: #94a3b8; margin-bottom: 15px;">প্রমোশন বা গিফটিংয়ের জন্য ডিপোজিট করুন।</p>
+      <input type="number" id="depositAmount" class="auth-input" placeholder="ডলার পরিমাণ (যেমন: $10)...">
+      <button class="auth-btn" onclick="submitDepositRequest()">পেমেন্ট সম্পন্ন করুন</button>
+    </div>
+  </div>
+
+  <div id="activityModal" class="modal-overlay">
+    <div class="modal-card">
+      <span class="close-btn" onclick="closeModal('activityModal')">✕</span>
+      <h3 style="margin-bottom:15px;">Activity Centre</h3>
+      <div id="activityListContent" style="font-size:13px; color:#cbd5e1; max-height:250px; overflow-y:auto;">লোড হচ্ছে...</div>
+    </div>
+  </div>
+
+  <div id="offlineModal" class="modal-overlay">
+    <div class="modal-card">
+      <span class="close-btn" onclick="closeModal('offlineModal')">✕</span>
+      <h3 style="margin-bottom:15px;">Offline Videos</h3>
+      <p style="font-size:12px; color:#94a3b8; margin-bottom:15px;">অফলাইনে দেখার জন্য সেভ করা ভিডিওসমূহ:</p>
+      <div id="offlineListContent" style="font-size:13px; color:#cbd5e1;">কোনো অফলাইন ভিডিও নেই।</div>
+    </div>
+  </div>
+
+  <div id="settingsModal" class="modal-overlay">
+    <div class="modal-card">
+      <span class="close-btn" onclick="closeModal('settingsModal')">✕</span>
+      <h3 style="margin-bottom:15px;">Settings and privacy</h3>
+      <div class="setting-row">
+        <span>পুশ নোটিফিকেশন</span>
+        <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+      </div>
+      <div class="setting-row">
+        <span>প্রাইভেট অ্যাকাউন্ট</span>
+        <label class="switch"><input type="checkbox"><span class="slider"></span></label>
+      </div>
+      <div class="setting-row">
+        <span>ডার্ক মোড</span>
+        <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+      </div>
+      <button class="auth-btn" style="margin-top:20px; background:#f43f5e;" onclick="if(confirm('অ্যাকাউন্ট ডিলিট করতে চান?')) { logout(); }">অ্যাকাউন্ট ডিলিট করুন</button>
+    </div>
+  </div>
+
+  <div id="businessModal" class="modal-overlay">
+    <div class="modal-card" style="text-align:center;">
+      <span class="close-btn" onclick="closeModal('businessModal')">✕</span>
+      <h3 style="margin-bottom:10px;">Business Suite</h3>
+      <p style="font-size:13px; color:#94a3b8; margin-bottom:15px;">আপনার অ্যাকাউন্টটি প্রফেশনাল ক্রিয়েটর মোডে সক্রিয় রয়েছে।</p>
+      <button class="auth-btn" onclick="closeModal('businessModal')">ঠিক আছে</button>
+    </div>
+  </div>
+
+  <div id="promoteModal" class="modal-overlay">
+    <div class="modal-card" style="text-align:center;">
+      <span class="close-btn" onclick="closeModal('promoteModal')">✕</span>
+      <h3 style="margin-bottom:10px;">Promote Video</h3>
+      <p style="font-size:13px; color:#94a3b8; margin-bottom:15px;">ভিডিও প্রমোট করে বেশি রিচ পান।</p>
+      <button class="auth-btn" onclick="alert('প্রমোশন ক্যাম্পেইন শুরু হয়েছে!')">ভিডিও প্রমোট করুন</button>
+    </div>
+  </div>
+
+  <div id="clipzoStudioModal" class="modal-overlay">
+    <div class="modal-card">
+      <span class="close-btn" onclick="closeModal('clipzoStudioModal')">✕</span>
+      <h3 style="margin-bottom:4px; font-size: 18px;">Clipzo Studio</h3>
+      <p style="font-size: 12px; color: #94a3b8; margin-bottom: 15px;">ভিডিও অ্যানালিটিক্স ও পারফরম্যান্স</p>
+      
+      <div class="studio-tabs">
+        <div class="studio-tab active" onclick="filterStudioData('yesterday', this)">Yesterday</div>
+        <div class="studio-tab" onclick="filterStudioData('7days', this)">Last 7 Days</div>
+        <div class="studio-tab" onclick="filterStudioData('14days', this)">Last 14 Days</div>
+        <div class="studio-tab" onclick="filterStudioData('28days', this)">Last 28 Days</div>
+      </div>
+
+      <div class="studio-metric-box">
+        <div><div style="font-size:12px; color:#94a3b8;">Total Video Views</div><div class="metric-value" id="studioViews" style="font-size:20px; font-weight:800; color:#fff; margin-top:4px;">0</div></div>
+        <span style="font-size: 24px;">📈</span>
+      </div>
+      <div class="studio-metric-box">
+        <div><div style="font-size:12px; color:#94a3b8;">Total Likes Received</div><div class="metric-value" id="studioLikes" style="font-size:20px; font-weight:800; color:#fff; margin-top:4px;">0</div></div>
+        <span style="font-size: 24px;">❤️</span>
+      </div>
+      <div class="studio-metric-box">
+        <div><div style="font-size:12px; color:#94a3b8;">Profile Visits</div><div class="metric-value" id="studioVisits" style="font-size:20px; font-weight:800; color:#fff; margin-top:4px;">0</div></div>
+        <span style="font-size: 24px;">👥</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="editProfileModal" class="modal-overlay">
+    <div class="modal-card">
+      <span class="close-btn" onclick="closeModal('editProfileModal')">✕</span>
+      <h3 style="margin-bottom:15px; font-size: 18px;">প্রোফাইল এডিট করুন</h3>
+      <input type="text" id="editDisplayName" class="auth-input" placeholder="ডিসপ্লে নাম">
+      <input type="text" id="editBio" class="auth-input" placeholder="বায়ো লিখুন...">
+      <button class="auth-btn" onclick="saveProfileChanges()">সংরক্ষণ করুন</button>
+      <p id="editProfileMsg" style="margin-top:10px; font-size:12px; color:#06b6d4; text-align:center;"></p>
+    </div>
+  </div>
+
+  <div id="uploadModal" class="modal-overlay">
+    <div class="modal-card">
+      <span class="close-btn" onclick="closeModal('uploadModal')">✕</span>
+      <h3 style="margin-bottom:15px; font-size: 18px;">ভিডিও আপলোড করুন</h3>
+      <label for="videoFileInput" style="display:block; border: 2px dashed #475569; border-radius: 14px; padding: 25px; cursor: pointer; background: rgba(15, 23, 42, 0.5); text-align:center; margin-bottom: 15px;">
+        <span style="font-size: 32px;">🎥</span>
+        <p style="font-size: 13px; color: #cbd5e1; margin-top: 8px;" id="fileLabel">গ্যালারি থেকে ভিডিও সিলেক্ট করুন</p>
+      </label>
+      <input type="file" id="videoFileInput" accept="video/*" style="display: none;" onchange="handleFileSelect(event)">
+      <input type="text" id="videoCaption" class="auth-input" placeholder="ভিডিওর ক্যাপশন লিখুন...">
+      <button class="auth-btn" id="uploadSubmitBtn" onclick="uploadVideo()">আপলোড শুরু করুন</button>
+      <p id="uploadStatus" style="margin-top:12px; font-size:12px; color:#06b6d4; text-align:center;"></p>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = "https://kekvjtnganrojdlqjjge.supabase.co"; 
+    const SUPABASE_KEY = "sb_publishable_H9vH5SivM5ZiDlkRWcLvSw_TEPVzEFD"; 
+
+    let supabaseClient = null;
+    try { supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e){}
+
+    let currentUser = null;
+    let selectedFile = null;
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      if(!supabaseClient) return;
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if(session && session.user) {
+        currentUser = session.user;
+        showAppScreen();
+      }
+    });
+
+    function switchAuthTab(type) {
+      document.getElementById('signUpTabBtn').classList.toggle('active', type === 'signup');
+      document.getElementById('loginTabBtn').classList.toggle('active', type === 'login');
+      document.getElementById('signUpForm').classList.toggle('active', type === 'signup');
+      document.getElementById('loginForm').classList.toggle('active', type === 'login');
+      document.getElementById('authMsg').innerText = "";
+    }
+
+    async function handleSignUp() {
+      const username = document.getElementById('signUpUsername').value.trim();
+      const email = document.getElementById('signUpEmail').value.trim();
+      const password = document.getElementById('signUpPassword').value;
+      const msg = document.getElementById('authMsg');
+      if(!username || !email || !password) { msg.innerText = "সবগুলো তথ্য দিন!"; return; }
+      
+      const { error } = await supabaseClient.auth.signUp({ email, password, options: { data: { username } } });
+      if (error) { msg.innerText = error.message; } 
+      else { alert("সাইন আপ সফল হয়েছে! এবার লগইন করুন।"); switchAuthTab('login'); }
+    }
+
+    async function handleLogin() {
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const msg = document.getElementById('authMsg');
+      if(!email || !password) { msg.innerText = "ইমেইল ও পাসওয়ার্ড দিন!"; return; }
+
+      const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      if (error) { msg.innerText = error.message; } 
+      else { currentUser = data.user; showAppScreen(); }
+    }
+
+    function showAppScreen() {
+      document.getElementById('authScreen').style.display = 'none';
+      document.getElementById('appScreen').style.display = 'block';
+      loadVideos();
+    }
+
+    function switchTab(tabName) {
+      document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.bottom-nav .nav-item').forEach(el => el.classList.remove('active'));
+
+      if(tabName === 'feed') {
+        document.getElementById('feedSection').classList.add('active');
+        document.getElementById('navFeedBtn').classList.add('active');
+        loadVideos();
+      } else if(tabName === 'profile') {
+        if(!currentUser) { alert("লগইন করুন!"); return; }
+        document.getElementById('profileSection').classList.add('active');
+        document.getElementById('navProfileBtn').classList.add('active');
+        loadProfileData();
+      } else {
+        alert("এই ফিচারটি চালু আছে!");
+      }
+    }
+
+    // ড্রয়ার হ্যান্ডলার্স
+    function openDrawer() {
+      document.getElementById('drawerOverlay').style.display = 'block';
+      document.getElementById('drawerMenu').classList.add('open');
+    }
+    function closeDrawer() {
+      document.getElementById('drawerOverlay').style.display = 'none';
+      document.getElementById('drawerMenu').classList.remove('open');
+    }
+
+    // ব্যালেন্স ও কয়েন লজিক (১০০০ ভিউ = ১০ কয়েন, ১০ কয়েন = $0.5)
+    async function openBalanceModal() {
+      closeDrawer();
+      document.getElementById('balanceModal').style.display = 'flex';
+      if(!currentUser) return;
+
+      const { data: videos } = await supabaseClient.from('videos').select('likes_count').eq('user_id', currentUser.id);
+      // সিমুলেটেড বা ভিডিওর এনগেজমেন্ট অনুযায়ী ভিউ হিসাব (প্রতি ভিডিও গড়ে ১২০০ ভিউ ধরে)
+      let totalViews = (videos || []).reduce((acc, v) => acc + ((v.likes_count || 0) * 20 + 800), 0);
+      
+      // ১০০০ ভিউতে ১০ কয়েন
+      let totalCoins = Math.floor(totalViews / 1000) * 10;
+      // ১০ কয়েনের মূল্য $0.5 হলে, ১ কয়েনের মূল্য $0.05
+      let totalUsd = (totalCoins * (0.5 / 10)).toFixed(2);
+
+      document.getElementById('userCoinDisplay').innerText = totalCoins + " কয়েন";
+      document.getElementById('userUsdDisplay').innerText = `মূল্য: $${totalUsd} (মোট ভিউ: ${totalViews})`;
+    }
+
+    function openWithdrawModal() {
+      closeModal('balanceModal');
+      document.getElementById('withdrawModal').style.display = 'flex';
+    }
+
+    function submitWithdrawRequest() {
+      const coins = document.getElementById('withdrawCoins').value;
+      const account = document.getElementById('withdrawAccountNo').value;
+      if(!coins || !account) { alert("সব তথ্য সঠিকভাবে পূরণ করুন!"); return; }
+      alert(`আপনার ${coins} কয়েন উইথড্র করার রিকোয়েস্ট সফলভাবে জমা হয়েছে!`);
+      closeModal('withdrawModal');
+    }
+
+    function openDepositModal() {
+      closeModal('balanceModal');
+      document.getElementById('depositModal').style.display = 'flex';
+    }
+
+    function submitDepositRequest() {
+      const amount = document.getElementById('depositAmount').value;
+      if(!amount) { alert("টাকার পরিমাণ লিখুন!"); return; }
+      alert(` সফলভাবে $${amount} ডিপোজিট হয়েছে!`);
+      closeModal('depositModal');
+    }
+
+    async function openActivityCentre() {
+      closeDrawer();
+      document.getElementById('activityModal').style.display = 'flex';
+      const content = document.getElementById('activityListContent');
+      content.innerHTML = "অ্যাক্টিভিটি লোড হচ্ছে...";
+      if(!currentUser) return;
+      const { data: videos } = await supabaseClient.from('videos').select('caption, created_at').eq('user_id', currentUser.id);
+      if(videos && videos.length > 0) {
+        content.innerHTML = videos.map(v => `<div style="padding:8px 0; border-bottom:1px solid #334155;">🎥 ভিডিও আপলোড: "${v.caption || 'ক্যাপশনহীন'}"</div>`).join('');
+      } else {
+        content.innerHTML = "আপনার কোনো সাম্প্রতিক অ্যাক্টিভিটি নেই।";
+      }
+    }
+
+    function openOfflineVideos() { closeDrawer(); document.getElementById('offlineModal').style.display = 'flex'; }
+    function showQrCodeModal() { closeDrawer(); alert("আপনার ইউজারনেম QR কোড: @" + (currentUser?.user_metadata?.username || 'user')); }
+    function openBusinessSuite() { closeDrawer(); document.getElementById('businessModal').style.display = 'flex'; }
+    function openPromoteModal() { closeDrawer(); document.getElementById('promoteModal').style.display = 'flex'; }
+    function openSettingsPrivacy() { closeDrawer(); document.getElementById('settingsModal').style.display = 'flex'; }
+
+    async function openClipzoStudio() {
+      closeDrawer();
+      document.getElementById('clipzoStudioModal').style.display = 'flex';
+      filterStudioData('7days', document.querySelector('.studio-tab'));
+    }
+
+    async function filterStudioData(range, el) {
+      document.querySelectorAll('.studio-tab').forEach(t => t.classList.remove('active'));
+      if(el) el.classList.add('active');
+      if(!currentUser) return;
+      
+      const { data: videos } = await supabaseClient.from('videos').select('*').eq('user_id', currentUser.id);
+      let totalLikes = (videos || []).reduce((acc, v) => acc + (v.likes_count || 0), 0);
+      document.getElementById('studioViews').innerText = (videos?.length || 0) * 1200;
+      document.getElementById('studioLikes').innerText = totalLikes;
+      document.getElementById('studioVisits').innerText = (videos?.length || 0) * 150;
+    }
+
+    async function loadVideos() {
+      const container = document.getElementById('videoContainer');
+      const { data: videos } = await supabaseClient.from('videos').select(`id, user_id, video_url, caption, likes_count, profiles(username)`).order('created_at', { ascending: false });
+
+      if (!videos || videos.length === 0) {
+        container.innerHTML = `<div class="video-card"><div style="text-align:center; padding:20px; color:#cbd5e1;"><h2>Clipzo-তে স্বাগতম!</h2><p style="margin-top:8px; font-size:13px; color:#94a3b8;">কোনো ভিডিও পাওয়া যায়নি। নিচে (+) চেপে ভিডিও আপলোড করুন!</p></div></div>`;
+        return;
+      }
+
+      container.innerHTML = '';
+      for (let video of videos) {
+        let isLiked = false;
+        if(currentUser) {
+          const { data: likeCheck } = await supabaseClient.from('likes').select('*').eq('user_id', currentUser.id).eq('video_id', video.id).maybeSingle();
+          if(likeCheck) isLiked = true;
+        }
+
+        const card = document.createElement('div');
+        card.className = 'video-card';
+        card.innerHTML = `
+          <video src="${video.video_url}" loop playsinline onclick="this.paused ? this.play() : this.pause()"></video>
+          <div class="sidebar">
+            <div class="action-item" onclick="toggleLike('${video.id}', this)">
+              <div class="action-icon" id="like-icon-${video.id}">${isLiked ? '❤️' : '🤍'}</div>
+              <span class="action-count" id="like-count-${video.id}">${video.likes_count || 0}</span>
+            </div>
+          </div>
+          <div class="video-info">
+            <div class="username-row"><div class="username-text">@${video.profiles?.username || 'creator'}</div></div>
+            <div class="caption-text">${video.caption || ''}</div>
+          </div>`;
+        container.appendChild(card);
+      }
+    }
+
+    async function toggleLike(videoId) {
+      if(!currentUser) { alert("লগইন করুন!"); return; }
+      const iconEl = document.getElementById(`like-icon-${videoId}`);
+      const countEl = document.getElementById(`like-count-${videoId}`);
+      let count = parseInt(countEl.innerText);
+
+      if(iconEl.innerText === '🤍') {
+        iconEl.innerText = '❤️'; countEl.innerText = count + 1;
+        await supabaseClient.from('likes').insert({ user_id: currentUser.id, video_id: videoId });
+        await supabaseClient.from('videos').update({ likes_count: count + 1 }).eq('id', videoId);
+      } else {
+        iconEl.innerText = '🤍'; countEl.innerText = Math.max(0, count - 1);
+        await supabaseClient.from('likes').delete().eq('user_id', currentUser.id).eq('video_id', videoId);
+        await supabaseClient.from('videos').update({ likes_count: Math.max(0, count - 1) }).eq('id', videoId);
+      }
+    }
+
+    async function loadProfileData() {
+      const uname = currentUser.user_metadata?.username || currentUser.email.split('@')[0];
+      const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
+
+      document.getElementById('profDisplayName').innerText = profile?.username || uname;
+      document.getElementById('profUsername').innerText = `@${uname}`;
+      document.getElementById('profBio').innerText = profile?.bio || 'বায়ো যোগ করুন...';
+      document.getElementById('profImg').src = profile?.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${uname}`;
+
+      const { count: followingCount } = await supabaseClient.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', currentUser.id);
+      const { count: followersCount } = await supabaseClient.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', currentUser.id);
+      const { data: userVideos } = await supabaseClient.from('videos').select('id, video_url, likes_count').eq('user_id', currentUser.id).order('created_at', { ascending: false });
+      
+      let totalLikes = 0;
+      const gridContainer = document.getElementById('userProfileVideosGrid');
+      gridContainer.innerHTML = '';
+
+      if(userVideos && userVideos.length > 0) {
+        userVideos.forEach(v => {
+          totalLikes += (v.likes_count || 0);
+          const gridItem = document.createElement('div');
+          gridItem.className = 'grid-video-item';
+          gridItem.innerHTML = `<video src="${v.video_url}#t=0.5" muted preload="metadata"></video><div class="grid-like-badge">❤️ ${v.likes_count || 0}</div>`;
+          gridContainer.appendChild(gridItem);
+        });
+      } else {
+        gridContainer.innerHTML = `<div style="grid-column: span 3; text-align:center; padding:30px; color:#94a3b8; font-size:12px;">কোনো ভিডিও নেই</div>`;
+      }
+
+      document.getElementById('statFollowing').innerText = followingCount || 0;
+      document.getElementById('statFollowers').innerText = followersCount || 0;
+      document.getElementById('statLikes').innerText = totalLikes;
+    }
+
+    async function uploadAvatarFile(e) {
+      const file = e.target.files[0];
+      if(!file) return;
+      alert("আপলোড হচ্ছে...");
+      try {
+        const filePath = `avatars/${currentUser.id}_${Date.now()}`;
+        await supabaseClient.storage.from('videos').upload(filePath, file);
+        const { data: urlData } = supabaseClient.storage.from('videos').getPublicUrl(filePath);
+        await supabaseClient.from('profiles').upsert({ id: currentUser.id, avatar_url: urlData.publicUrl, username: currentUser.user_metadata?.username || currentUser.email.split('@')[0] });
+        document.getElementById('profImg').src = urlData.publicUrl;
+        alert("সফল হয়েছে!");
+      } catch(err) { alert("ব্যর্থ: " + err.message); }
+    }
+
+    function openEditProfileModal() {
+      closeDrawer();
+      document.getElementById('editDisplayName').value = document.getElementById('profDisplayName').innerText;
+      document.getElementById('editBio').value = document.getElementById('profBio').innerText;
+      document.getElementById('editProfileModal').style.display = 'flex';
+    }
+
+    async function saveProfileChanges() {
+      const newName = document.getElementById('editDisplayName').value.trim();
+      const newBio = document.getElementById('editBio').value.trim();
+      const msg = document.getElementById('editProfileMsg');
+      
+      const { error } = await supabaseClient.from('profiles').upsert({ id: currentUser.id, username: newName, bio: newBio });
+      if(error) { msg.innerText = error.message; } 
+      else { msg.innerText = "সংরক্ষিত হয়েছে!"; setTimeout(() => { closeModal('editProfileModal'); loadProfileData(); }, 1000); }
+    }
+
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+    function openUploadModal() {
+      if(!currentUser) { alert("লগইন করুন!"); return; }
+      document.getElementById('uploadModal').style.display = 'flex';
+    }
+    function handleFileSelect(e) {
+      selectedFile = e.target.files[0];
+      if(selectedFile) document.getElementById('fileLabel').innerText = "সিলেক্টেড: " + selectedFile.name;
+    }
+    async function uploadVideo() {
+      const caption = document.getElementById('videoCaption').value;
+      const status = document.getElementById('uploadStatus');
+      if (!selectedFile) { status.innerText = "ভিডিও দিন!"; return; }
+      
+      status.innerText = "আপলোড হচ্ছে...";
+      try {
+        const filePath = `${currentUser.id}/${Date.now()}_${selectedFile.name}`;
+        await supabaseClient.storage.from('videos').upload(filePath, selectedFile);
+        const { data: urlData } = supabaseClient.storage.from('videos').getPublicUrl(filePath);
+        await supabaseClient.from('videos').insert({ user_id: currentUser.id, video_url: urlData.publicUrl, caption, likes_count: 0 });
+        status.innerText = "সফল!";
+        setTimeout(() => { closeModal('uploadModal'); switchTab('feed'); }, 1000);
+      } catch (err) { status.innerText = err.message; }
+    }
+    async function logout() {
+      await supabaseClient.auth.signOut();
+      currentUser = null;
+      document.getElementById('appScreen').style.display = 'none';
+      document.getElementById('authScreen').style.display = 'flex';
+    }
+  </script>
+</body>
+</html>
