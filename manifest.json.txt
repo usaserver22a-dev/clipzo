@@ -1,0 +1,13 @@
+{
+  "background_color": "#000000",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "Clipzo",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "Clipzo",
+  "start_url": "/",
+  "theme_color": "#000000",
+  "id": "/",
+  "description": "A short video sharing platform"
+}
